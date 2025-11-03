@@ -186,6 +186,14 @@ impl NativeCurrencyAmount {
 
     /// Multiply the amount by a non-negative 32-bit number.
     ///
+    /// Returns `None` in the case of overflow.
+    pub fn checked_scalar_mul(&self, factor: u32) -> Option<Self> {
+        let factor_as_i128 = i128::from(factor);
+        self.0.checked_mul(factor_as_i128).map(NativeCurrencyAmount)
+    }
+
+    /// Multiply the amount by a non-negative 32-bit number.
+    ///
     /// Crashes in case of overflow.
     pub fn scalar_mul(&self, factor: u32) -> Self {
         let factor_as_i128 = i128::from(factor);
@@ -607,9 +615,8 @@ pub(crate) mod tests {
     use tasm_lib::triton_vm::isa::instruction::AnInstruction;
     use test_strategy::proptest;
 
-    use crate::protocol::consensus::block::INITIAL_BLOCK_SUBSIDY;
-
     use super::*;
+    use crate::protocol::consensus::block::INITIAL_BLOCK_SUBSIDY;
 
     impl NativeCurrencyAmount {
         pub(crate) fn from_raw_i128(int: i128) -> Self {

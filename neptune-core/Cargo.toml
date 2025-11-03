@@ -3,7 +3,7 @@ name = "neptune-cash"
 description = "A layer-1 cryptocurrency featuring scalable privacy and post-quantum security."
 authors = ["Triton Software"]
 
-version = "0.4.0"
+version = "0.5.0"
 edition = "2021"
 license = "Apache-2.0"
 readme = "../README.md"
@@ -73,7 +73,7 @@ console-subscriber = { version = "0.2", optional = true }
 directories = "5.0"
 field_count = "0.1"
 futures = "0.3"
-get-size2 = { version = "0.5", features = ["derive"] }
+get-size2 = { version = "0.7", features = ["derive"] }
 itertools = "0.11"
 memmap2 = "0.9"
 num-bigint = { version = "0.4", features = ["serde"] }
@@ -97,7 +97,7 @@ tarpc = { version = "^0.34", features = [
     "serde-transport-json",
     "tcp",
 ] }
-tasm-lib = "0.50.0"
+tasm-lib = "1.0.0"
 tiny-bip39 = "1.0"
 tokio = { version = "1.41", features = ["full", "tracing"] }
 tokio-serde = { version = "0.8", features = ["bincode", "json"] }
@@ -118,6 +118,10 @@ sysinfo = "0.31.4"
 thread-priority = "1.2.0"
 rayon = "1.10"
 humantime = "2.1.0"
+neptune-rpc-macros = "0.5.0"
+axum = "0.8.4"
+serde_tuple = "1.1.2"
+hex = "0.4.3"
 
 [dev-dependencies]
 
@@ -131,7 +135,6 @@ blake3 = "1.5.4"
 clienter = "0.1.1"
 divan = "0.1.14"
 macro_rules_attr = "0.1.3"
-pin-project-lite = "0.2.14"
 proptest = { version = "1.7" }
 proptest-arbitrary-interop = { version = "0.1" }
 rand_distr = "0.5"

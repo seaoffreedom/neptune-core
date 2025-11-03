@@ -461,6 +461,7 @@ pub trait RPC {
     /// ```no_run
     /// # use anyhow::Result;
     /// use neptune_cash::protocol::consensus::block::block_selector::BlockSelector;
+    /// use neptune_cash::protocol::consensus::block::block_selector::BlockSelectorLiteral;
     /// # use neptune_cash::application::rpc::server::RPCClient;
     /// # use neptune_cash::application::rpc::auth;
     /// # use tarpc::tokio_serde::formats::Json;
@@ -484,7 +485,7 @@ pub trait RPC {
     /// # let token : auth::Token = auth::Cookie::try_load(&cookie_hint.data_directory).await?.into();
     /// #
     /// // set the way to look up for a block : it can be `Digest`, `Height`, `Genesis`, `Tip`
-    /// let block_selector : BlockSelector = BlockSelector::Genesis;
+    /// let block_selector : BlockSelector = BlockSelector::Special(BlockSelectorLiteral::Genesis);
     ///
     /// // query neptune-core server to get block info
     /// let latest_tip_digests = client.block_info(context::current(), token, block_selector).await??;
@@ -577,6 +578,7 @@ pub trait RPC {
     /// ```no_run
     /// # use anyhow::Result;
     /// use neptune_cash::protocol::consensus::block::block_selector::BlockSelector;
+    /// use neptune_cash::protocol::consensus::block::block_selector::BlockSelectorLiteral;
     /// # use neptune_cash::application::rpc::server::RPCClient;
     /// # use neptune_cash::application::rpc::auth;
     /// # use tarpc::tokio_serde::formats::Json;
@@ -600,7 +602,7 @@ pub trait RPC {
     /// # let token : auth::Token = auth::Cookie::try_load(&cookie_hint.data_directory).await?.into();
     /// #
     /// // set the way to look up for a block : it can be `Digest`, `Height`, `Genesis`, `Tip`
-    /// let block_selector : BlockSelector = BlockSelector::Tip;
+    /// let block_selector : BlockSelector = BlockSelector::Special(BlockSelectorLiteral::Tip);
     ///
     /// // query neptune-core server to get block digest
     /// let block_digest = client.block_digest(context::current(), token, block_selector).await??;
@@ -661,6 +663,7 @@ pub trait RPC {
     /// ```no_run
     /// # use anyhow::Result;
     /// use neptune_cash::protocol::consensus::block::block_selector::BlockSelector;
+    /// use neptune_cash::protocol::consensus::block::block_selector::BlockSelectorLiteral;
     /// # use neptune_cash::application::rpc::server::RPCClient;
     /// # use neptune_cash::application::rpc::auth;
     /// # use tarpc::tokio_serde::formats::Json;
@@ -684,7 +687,7 @@ pub trait RPC {
     /// # let token : auth::Token = auth::Cookie::try_load(&cookie_hint.data_directory).await?.into();
     /// #
     /// // set the way to look up for a block : it can be `Digest`, `Height`, `Genesis`, `Tip`
-    /// let block_selector : BlockSelector = BlockSelector::Genesis;
+    /// let block_selector : BlockSelector = BlockSelector::Special(BlockSelectorLiteral::Genesis);
     ///
     /// // query neptune-core server to get block header
     /// let block_header = client.header(context::current(), token, block_selector).await??;
@@ -1480,6 +1483,7 @@ pub trait RPC {
     /// ```no_run
     /// # use anyhow::Result;
     /// use neptune_cash::protocol::consensus::block::block_selector::BlockSelector;
+    /// use neptune_cash::protocol::consensus::block::block_selector::BlockSelectorLiteral;
     /// # use neptune_cash::application::rpc::server::RPCClient;
     /// # use neptune_cash::application::rpc::auth;
     /// # use tarpc::tokio_serde::formats::Json;
@@ -1503,7 +1507,7 @@ pub trait RPC {
     /// # let token : auth::Token = auth::Cookie::try_load(&cookie_hint.data_directory).await?.into();
     /// #
     /// // sets the last block
-    /// let last_block : BlockSelector = BlockSelector::Genesis;
+    /// let last_block : BlockSelector = BlockSelector::Special(BlockSelectorLiteral::Genesis);
     ///
     /// // set maximum number of blocks to 5 blocks
     /// let max_num_blocks : Option<usize> = Some(5);
@@ -2217,7 +2221,7 @@ impl NeptuneRPCServer {
         let latest_block_header = *self.state.lock_guard().await.chain.light_state().header();
 
         proposal.set_header_guesser_address(guesser_address);
-        let puzzle = ProofOfWorkPuzzle::new(proposal.clone(), latest_block_header);
+        let puzzle = ProofOfWorkPuzzle::new(proposal.clone(), latest_block_header.difficulty);
 
         // Record block proposal in case of guesser-success, for later
         // retrieval. But limit number of blocks stored this way.
@@ -3807,7 +3811,7 @@ impl RPC for NeptuneRPCServer {
         };
 
         proposal.set_header_guesser_address(guesser_fee_address);
-        let puzzle = ProofOfWorkPuzzle::new(proposal.clone(), latest_block_header);
+        let puzzle = ProofOfWorkPuzzle::new(proposal.clone(), latest_block_header.difficulty);
 
         Ok(Some((proposal, puzzle)))
     }
@@ -4304,6 +4308,7 @@ mod tests {
     use crate::application::config::network::Network;
     use crate::application::database::storage::storage_vec::traits::*;
     use crate::application::rpc::server::NeptuneRPCServer;
+    use crate::protocol::consensus::block::block_selector::BlockSelectorLiteral;
     use crate::protocol::peer::NegativePeerSanction;
     use crate::protocol::peer::PeerSanction;
     use crate::protocol::proof_abstractions::mast_hash::MastHash;
@@ -4535,11 +4540,21 @@ mod tests {
             .unwrap();
         let _ = rpc_server
             .clone()
-            .block_intervals(ctx, token, BlockSelector::Tip, None)
+            .block_intervals(
+                ctx,
+                token,
+                BlockSelector::Special(BlockSelectorLiteral::Tip),
+                None,
+            )
             .await;
         let _ = rpc_server
             .clone()
-            .block_difficulties(ctx, token, BlockSelector::Tip, None)
+            .block_difficulties(
+                ctx,
+                token,
+                BlockSelector::Special(BlockSelectorLiteral::Tip),
+                None,
+            )
             .await;
         let _ = rpc_server
             .clone()
@@ -5189,7 +5204,11 @@ mod tests {
         assert_eq!(
             Block::genesis(network).kernel.mast_hash(),
             rpc_server
-                .block_kernel(ctx, token, BlockSelector::Genesis)
+                .block_kernel(
+                    ctx,
+                    token,
+                    BlockSelector::Special(BlockSelectorLiteral::Genesis)
+                )
                 .await
                 .expect("RPC call must pass")
                 .expect("Must find genesis block")
@@ -5249,7 +5268,11 @@ mod tests {
             genesis_block_info,
             rpc_server
                 .clone()
-                .block_info(ctx, token, BlockSelector::Genesis)
+                .block_info(
+                    ctx,
+                    token,
+                    BlockSelector::Special(BlockSelectorLiteral::Genesis)
+                )
                 .await
                 .unwrap()
                 .unwrap()
@@ -5260,7 +5283,11 @@ mod tests {
             tip_block_info,
             rpc_server
                 .clone()
-                .block_info(ctx, token, BlockSelector::Tip)
+                .block_info(
+                    ctx,
+                    token,
+                    BlockSelector::Special(BlockSelectorLiteral::Tip)
+                )
                 .await
                 .unwrap()
                 .unwrap()
@@ -5401,7 +5428,11 @@ mod tests {
             genesis_hash,
             rpc_server
                 .clone()
-                .block_digest(ctx, token, BlockSelector::Genesis)
+                .block_digest(
+                    ctx,
+                    token,
+                    BlockSelector::Special(BlockSelectorLiteral::Genesis)
+                )
                 .await
                 .unwrap()
                 .unwrap()
@@ -5412,7 +5443,11 @@ mod tests {
             global_state.chain.light_state().hash(),
             rpc_server
                 .clone()
-                .block_digest(ctx, token, BlockSelector::Tip)
+                .block_digest(
+                    ctx,
+                    token,
+                    BlockSelector::Special(BlockSelectorLiteral::Tip)
+                )
                 .await
                 .unwrap()
                 .unwrap()
@@ -5640,6 +5675,7 @@ mod tests {
         use crate::protocol::consensus::block::block_header::BlockPow;
         use crate::protocol::consensus::block::pow::Pow;
         use crate::protocol::consensus::block::BlockProof;
+        use crate::protocol::consensus::consensus_rule_set::ConsensusRuleSet;
         use crate::protocol::consensus::transaction::validity::neptune_proof::NeptuneProof;
         use crate::state::mining::block_proposal::BlockProposal;
         use crate::state::wallet::address::generation_address::GenerationReceivingAddress;
@@ -5656,7 +5692,8 @@ mod tests {
             let guesser_address = GenerationReceivingAddress::derive_from_seed(rng.random());
             block1.set_header_guesser_address(guesser_address.into());
 
-            let guess_challenge = ProofOfWorkPuzzle::new(block1.clone(), *genesis.header());
+            let guess_challenge =
+                ProofOfWorkPuzzle::new(block1.clone(), genesis.header().difficulty);
             assert_eq!(guess_challenge.prev_block, genesis.hash());
 
             let pow: BlockPow = random();
@@ -5744,7 +5781,7 @@ mod tests {
                 "Node must reject new tip with invalid PoW solution."
             );
 
-            let solution = puzzle.solve();
+            let solution = puzzle.solve(ConsensusRuleSet::default());
             assert!(
                 bob.clone()
                     .provide_new_tip(context::current(), bob_token, solution, proposal.clone())
@@ -5914,7 +5951,7 @@ mod tests {
                 );
 
                 let pow: BlockPow = random();
-                let resulting_block_hash = pow_puzzle.auth_paths.fast_mast_hash(pow);
+                let resulting_block_hash = pow_puzzle.pow_mast_paths.fast_mast_hash(pow);
 
                 block1.set_header_pow(pow);
                 block1.set_header_guesser_address(guesser_address.into());
@@ -5925,10 +5962,19 @@ mod tests {
                 );
 
                 // Check that succesful guess is accepted by endpoint.
-                let guesser_buffer = block1.guess_preprocess(None, None);
+                let consensus_rule_set = ConsensusRuleSet::Reboot;
+                let guesser_buffer = block1.guess_preprocess(None, None, consensus_rule_set);
+                let mast_auth_paths = block1.pow_mast_paths();
+                let index_picker_preimage = guesser_buffer.index_picker_preimage(&mast_auth_paths);
                 let target = genesis.header().difficulty.target();
                 let valid_pow = loop {
-                    if let Some(valid_pow) = Pow::guess(&guesser_buffer, random(), target) {
+                    if let Some(valid_pow) = Pow::guess(
+                        &guesser_buffer,
+                        &mast_auth_paths,
+                        index_picker_preimage,
+                        random(),
+                        target,
+                    ) {
                         break valid_pow;
                     }
                 };
